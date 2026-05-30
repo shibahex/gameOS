@@ -339,7 +339,7 @@ id: root
 
                     // Box proportions: PS3 Blu-ray case
                     property real boxW: vpx(130)
-                    property real boxH: vpx(185)
+                    property real boxH: vpx(190)
                     property real boxD: vpx(14)
 
                     // Rotation controlled by left/right input — clamped -180 to +180
@@ -378,8 +378,8 @@ id: root
 
                     // Centre the projected faces inside the item
                     Item {
-                        width:  boxart.frontW + boxart.spineW
-                        height: boxart.boxH
+                        width: boxW
+                        height: boxH
                         anchors.centerIn: parent
 
                         // Front face
@@ -435,7 +435,7 @@ id: root
 
                         // Spine face
                         Item {
-                            x: boxart.spineX
+                            x: 0
                             y: 0
                             width:  boxart.spineW
                             height: boxart.boxH
@@ -443,16 +443,14 @@ id: root
 
                             Image {
                                 id: detailSpineImg
-                                width:  boxart.boxH
-                                height: boxart.boxD
+                                width:  boxart.boxD
+                                height: boxart.boxH
                                 source: game ? game.assets.boxSpine : ""
                                 fillMode: Image.Stretch
                                 asynchronous: true
                                 smooth: true
-                                transformOrigin: Item.TopLeft
-                                rotation: 90
                                 x: 0
-                                y: -boxart.boxD
+                                y: 0
                                 visible: status === Image.Ready && (game && game.assets.boxSpine)
                             }
                             Rectangle {
@@ -466,7 +464,6 @@ id: root
                                 opacity: 1 - boxart.spineBright
                             }
                         }
-
                         // Top edge
                         Rectangle {
                             x: boxart.frontX; y: -vpx(3)
@@ -815,3 +812,5 @@ id: root
         }
     }
 }
+
+
