@@ -341,10 +341,8 @@ id: root
                 id: box3d
                     anchors.fill: parent
                     visible: isPS3
-                    perspectiveProjection {
-                        projectionType: PerspectiveProjection.FrustumProjection
-                        focalLength: 1000
-                    }
+                    // Note: perspectiveProjection removed for Pegasus/Qt 5.12 compatibility.
+                    // Standard Rotation transforms + z-ordering provide a robust 3D effect.
 
                     // Drop Shadow (Flat, doesn't rotate with box)
                     Rectangle {
