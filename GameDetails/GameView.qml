@@ -342,7 +342,7 @@ id: root
                     property real boxH: vpx(185)
                     property real boxD: vpx(14)
 
-                    // Rotation controlled by left/right input — clamped -90 to +90
+                    // Rotation controlled by left/right input — clamped -180 to +180
                     property real rotY: 0
 
                     // Which direction is held: -1 left, 0 none, +1 right
@@ -355,7 +355,7 @@ id: root
                         running: boxart.rotDir !== 0 && detailsScreen.opacity > 0
                         onTriggered: {
                             var next = boxart.rotY + boxart.rotDir * 2
-                            boxart.rotY = Math.max(-90, Math.min(90, next))
+                            boxart.rotY = Math.max(-180, Math.min(180, next))
                         }
                     }
 
@@ -491,7 +491,7 @@ id: root
                             var delta = mouse.x - lastX
                             lastX = mouse.x
                             var next = boxart.rotY + delta * 0.5
-                            boxart.rotY = Math.max(-90, Math.min(90, next))
+                            boxart.rotY = Math.max(-180, Math.min(180, next))
                         }
                     }
                 }
