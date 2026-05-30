@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import QtQuick 2.15
+import QtQuick 2.8
 import QtQuick.Layouts 1.11
 import QtGraphicalEffects 1.0
 import SortFilterProxyModel 0.2
@@ -72,8 +72,6 @@ id: root
         screenshot.opacity = 1;
         mediaScreen.opacity = 0;
         toggleVideo(true);
-        box3dRotY = -25;
-        box3dRotX = 10;
     }
 
     function showDetails() {
@@ -100,9 +98,6 @@ id: root
         content.focus = true;
         currentHelpbarModel = gameviewHelpModel;
     }
-
-    property real box3dRotY: -25
-    property real box3dRotX: 10
 
     onGameChanged: reset();
 
@@ -327,7 +322,7 @@ id: root
 
                 // Regular boxart (non-PS3)
                 Image {
-                id: boxart
+                id: boxartFallback
                     source: Utils.boxArt(game)
                     height: parent.height
                     fillMode: Image.PreserveAspectFit
@@ -336,225 +331,168 @@ id: root
                     visible: !isPS3
                 }
 
-                // 3D Box Art for PS3
+                // ── 3D Box in details panel ───────────────────────────────────────
                 Item {
-                id: box3d
+                id: boxart
                     anchors.fill: parent
                     visible: isPS3
-                    // Note: perspectiveProjection removed for Pegasus/Qt 5.12 compatibility.
-                    // Standard Rotation transforms + z-ordering provide a robust 3D effect.
 
-                    // Drop Shadow (Flat, doesn't rotate with box)
-                    Rectangle {
-                        id: boxShadow
-                        anchors.centerIn: parent
-                        width: parent.width * 0.85
-                        height: parent.height * 0.92
-                        x: vpx(8); y: vpx(12)
-                        radius: vpx(4)
-                        color: "#000000"
-                        opacity: 0.6
-                        z: -1
-                    }
+                    // Box proportions: PS3 Blu-ray case
+                    property real boxW: vpx(130)
+                    property real boxH: vpx(185)
+                    property real boxD: vpx(14)
 
-                    // Mouse area handles dragging (Sits above everything)
-                    MouseArea {
-                        id: dragArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        z: 100 
+                    // Rotation controlled by left/right input — clamped -90 to +90
+                    property real rotY: 0
 
-                        property real lastMouseX: 0
-                        property real lastMouseY: 0
-                        property bool isDragging: false
+                    // Which direction is held: -1 left, 0 none, +1 right
+                    property int rotDir: 0
 
-                        onPressed: {
-                            mouse.accepted = true
-                            lastMouseX = mouse.x
-                            lastMouseY = mouse.y
-                            isDragging = true
-                        }
-
-                        onPositionChanged: {
-                            if (isDragging) {
-                                mouse.accepted = true 
-                                box3dRotY = Math.max(-80, Math.min(45, box3dRotY + (mouse.x - lastMouseX) * 0.5))
-                                box3dRotX = Math.max(-40, Math.min(45, box3dRotX - (mouse.y - lastMouseY) * 0.5))
-                                lastMouseX = mouse.x
-                                lastMouseY = mouse.y
-                            }
-                        }
-
-                        onReleased: {
-                            mouse.accepted = true
-                            isDragging = false
+                    Timer {
+                    id: rotTimer
+                        interval: 16
+                        repeat: true
+                        running: boxart.rotDir !== 0 && detailsScreen.opacity > 0
+                        onTriggered: {
+                            var next = boxart.rotY + boxart.rotDir * 2
+                            boxart.rotY = Math.max(-90, Math.min(90, next))
                         }
                     }
 
-                    // THE PARENT PIVOT: Applies pure rotation to the whole group
+                    // Projection math
+                    property real rad:   rotY * Math.PI / 180
+                    property real cosR:  Math.cos(rad)
+                    property real sinR:  Math.sin(rad)
+
+                    property real frontW: boxW * Math.abs(cosR)
+                    property real spineW: boxD * Math.abs(sinR)
+
+                    property bool frontVisible: cosR >= 0
+                    property bool spineOnLeft:  sinR >= 0
+
+                    property real spineX: spineOnLeft ? 0      : frontW
+                    property real frontX: spineOnLeft ? spineW : 0
+
+                    property real frontBright: 0.72 + 0.28 * Math.abs(cosR)
+                    property real spineBright: 0.30 + 0.25 * Math.abs(sinR)
+
+                    // Centre the projected faces inside the item
                     Item {
-                    id: boxRoot
+                        width:  boxart.frontW + boxart.spineW
+                        height: boxart.boxH
                         anchors.centerIn: parent
-                        width: parent.width * 0.85
-                        height: parent.height * 0.92
-                        z: 1
 
-                        // 1. FRONT FACE
-                        Rectangle {
-                            id: frontFace
-                            anchors.fill: parent
-                            color: "#111111"
-                            border.color: "#000000"
-                            border.width: 2
-                            z: 10
+                        // Front face
+                        Item {
+                            x: boxart.frontX
+                            y: 0
+                            width:  boxart.frontW
+                            height: boxart.boxH
+                            clip: true
+                            visible: boxart.frontVisible
 
                             Image {
                                 anchors.fill: parent
-                                anchors.margins: vpx(2)
-                                source: game && game.assets.boxFront ? game.assets.boxFront : Utils.boxArt(game)
-                                fillMode: Image.PreserveAspectFit
+                                source: game ? game.assets.boxFront : ""
+                                fillMode: Image.Stretch
                                 asynchronous: true
                                 smooth: true
                             }
-
-                            // Subtle plastic shine
                             Rectangle {
                                 anchors.fill: parent
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#25ffffff" }
-                                    GradientStop { position: 0.5; color: "#00ffffff" }
-                                    GradientStop { position: 1.0; color: "#10000000" }
-                                }
+                                color: "black"
+                                opacity: 1 - boxart.frontBright
                             }
                         }
 
-                        // 2. BACK FACE
-                        Rectangle {
-                            id: backFace
-                            anchors.fill: parent
-                            color: "#111111"
-                            border.color: "#000000"
-                            border.width: 2
-                            z: -10
-                            transform: Rotation {
-                                origin.x: width / 2
-                                origin.y: height / 2
-                                axis { x: 0; y: 1; z: 0 }
-                                angle: 180
-                            }
+                        // Back face
+                        Item {
+                            x: boxart.frontX
+                            y: 0
+                            width:  boxart.frontW
+                            height: boxart.boxH
+                            clip: true
+                            visible: !boxart.frontVisible
 
                             Image {
                                 anchors.fill: parent
-                                anchors.margins: vpx(2)
-                                source: game && game.assets.boxBack ? game.assets.boxBack : Utils.boxArt(game)
-                                fillMode: Image.PreserveAspectFit
+                                source: game ? game.assets.boxBack : ""
+                                fillMode: Image.Stretch
                                 asynchronous: true
                                 smooth: true
                             }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "#0d0d1a"
+                                visible: !(game && game.assets.boxBack)
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "black"
+                                opacity: 1 - boxart.frontBright
+                            }
                         }
 
-                        // 3. RIGHT FACE (Spine)
-                        Rectangle {
-                            id: rightFace
-                            width: vpx(25)
-                            height: frontFace.height
-                            x: frontFace.width / 2
+                        // Spine face
+                        Item {
+                            x: boxart.spineX
                             y: 0
-                            z: 5
-                            color: "#1e1e22"
-                            border.color: "#000000"
-                            border.width: 1
-
-                            transform: Rotation {
-                                origin.x: 0
-                                origin.y: rightFace.height / 2
-                                axis { x: 0; y: 1; z: 0 }
-                                angle: 90
-                            }
+                            width:  boxart.spineW
+                            height: boxart.boxH
+                            clip: true
 
                             Image {
-                                anchors.fill: parent
-                                anchors.margins: vpx(1)
-                                source: game && game.assets.boxSide ? game.assets.boxSide : (game && game.assets.boxSpine ? game.assets.boxSpine : "")
-                                fillMode: Image.PreserveAspectCrop
+                                id: detailSpineImg
+                                width:  boxart.boxH
+                                height: boxart.boxD
+                                source: game ? game.assets.boxSide : ""
+                                fillMode: Image.Stretch
                                 asynchronous: true
                                 smooth: true
+                                transformOrigin: Item.TopLeft
+                                rotation: 90
+                                x: 0
+                                y: -boxart.boxD
+                                visible: status === Image.Ready && (game && game.assets.boxSide)
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "#0a0a18"
+                                visible: !detailSpineImg.visible
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "black"
+                                opacity: 1 - boxart.spineBright
                             }
                         }
 
-                        // 4. LEFT FACE
+                        // Top edge
                         Rectangle {
-                            id: leftFace
-                            width: vpx(25)
-                            height: frontFace.height
-                            x: -width / 2
-                            y: 0
-                            z: 5
-                            color: "#151518"
-                            border.color: "#000000"
-                            border.width: 1
-
-                            transform: Rotation {
-                                origin.x: width
-                                origin.y: leftFace.height / 2
-                                axis { x: 0; y: 1; z: 0 }
-                                angle: -90
-                            }
+                            x: boxart.frontX; y: -vpx(3)
+                            width: boxart.frontW; height: vpx(3)
+                            color: "#1a1a30"; opacity: 0.9
                         }
-
-                        // 5. TOP FACE
+                        // Bottom edge
                         Rectangle {
-                            id: topFace
-                            width: frontFace.width
-                            height: vpx(25)
-                            x: 0
-                            y: -height / 2
-                            z: 5
-                            color: "#2a2a2f"
-                            border.color: "#000000"
-                            border.width: 1
-
-                            transform: Rotation {
-                                origin.x: topFace.width / 2
-                                origin.y: topFace.height
-                                axis { x: 1; y: 0; z: 0 }
-                                angle: -90
-                            }
-                        }
-
-                        // 6. BOTTOM FACE
-                        Rectangle {
-                            id: bottomFace
-                            width: frontFace.width
-                            height: vpx(25)
-                            x: 0
-                            y: height / 2
-                            z: 5
-                            color: "#111114"
-                            border.color: "#000000"
-                            border.width: 1
-
-                            transform: Rotation {
-                                origin.x: bottomFace.width / 2
-                                origin.y: 0
-                                axis { x: 1; y: 0; z: 0 }
-                                angle: 90
-                            }
+                            x: boxart.frontX; y: boxart.boxH
+                            width: boxart.frontW; height: vpx(3)
+                            color: "#08080f"; opacity: 0.9
                         }
                     }
+                // ── End 3D Box ────────────────────────────────────────────────────
 
-                    // Drag hint text
-                    Text {
-                        anchors {
-                            bottom: parent.bottom
-                            horizontalCenter: parent.horizontalCenter
-                            bottomMargin: vpx(5)
+                    // Mouse drag to rotate
+                    MouseArea {
+                        anchors.fill: parent
+                        property real lastX: 0
+                        onPressed:  { lastX = mouse.x }
+                        onPositionChanged: {
+                            var delta = mouse.x - lastX
+                            lastX = mouse.x
+                            var next = boxart.rotY + delta * 0.5
+                            boxart.rotY = Math.max(-90, Math.min(90, next))
                         }
-                        text: "↔ Drag to rotate"
-                        color: "#80ffffff"
-                        font.pixelSize: vpx(12)
-                        font.italic: true
-                        visible: dragArea.containsMouse && !dragArea.isDragging
                     }
                 }
             }
@@ -720,8 +658,26 @@ id: root
             orientation: ListView.Horizontal
             spacing: vpx(10)
             keyNavigationWraps: true
-            Keys.onLeftPressed: { sfxNav.play(); decrementCurrentIndex() }
-            Keys.onRightPressed: { sfxNav.play(); incrementCurrentIndex() }
+            Keys.onLeftPressed: {
+                if (detailsScreen.opacity > 0) {
+                    boxart.rotDir = -1;
+                } else {
+                    sfxNav.play();
+                    decrementCurrentIndex();
+                }
+            }
+            Keys.onRightPressed: {
+                if (detailsScreen.opacity > 0) {
+                    boxart.rotDir = 1;
+                } else {
+                    sfxNav.play();
+                    incrementCurrentIndex();
+                }
+            }
+            Keys.onReleased: {
+                if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+                    boxart.rotDir = 0;
+            }
         }
 
         HorizontalCollection {
@@ -834,6 +790,11 @@ id: root
             sfxAccept.play();
             game.favorite = !game.favorite;
         }
+    }
+
+    Keys.onReleased: {
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+            boxart.rotDir = 0;
     }
 
     ListModel {
