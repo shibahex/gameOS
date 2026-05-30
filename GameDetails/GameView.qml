@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import QtQuick 2.8
+import QtQuick 2.15
 import QtQuick.Layouts 1.11
 import QtGraphicalEffects 1.0
 import SortFilterProxyModel 0.2
@@ -341,6 +341,10 @@ id: root
                 id: box3d
                     anchors.fill: parent
                     visible: isPS3
+                    perspectiveProjection {
+                        projectionType: PerspectiveProjection.FrustumProjection
+                        focalLength: 1000
+                    }
 
                     // Drop Shadow (Flat, doesn't rotate with box)
                     Rectangle {
@@ -395,22 +399,7 @@ id: root
                         anchors.centerIn: parent
                         width: parent.width * 0.85
                         height: parent.height * 0.92
-
-                        // Rigid rotation applied to the whole box
-                        transform: [
-                            Rotation {
-                                origin.x: boxRoot.width / 2
-                                origin.y: boxRoot.height / 2
-                                axis { x: 0; y: 1; z: 0 }
-                                angle: box3dRotY
-                            },
-                            Rotation {
-                                origin.x: boxRoot.width / 2
-                                origin.y: boxRoot.height / 2
-                                axis { x: 1; y: 0; z: 0 }
-                                angle: box3dRotX
-                            }
-                        ]
+                        z: 1
 
                         // 1. FRONT FACE
                         Rectangle {
@@ -419,6 +408,7 @@ id: root
                             color: "#111111"
                             border.color: "#000000"
                             border.width: 2
+                            z: 10
 
                             Image {
                                 anchors.fill: parent
@@ -440,18 +430,43 @@ id: root
                             }
                         }
 
-                        // 2. RIGHT FACE (Spine)
+                        // 2. BACK FACE
+                        Rectangle {
+                            id: backFace
+                            anchors.fill: parent
+                            color: "#111111"
+                            border.color: "#000000"
+                            border.width: 2
+                            z: -10
+                            transform: Rotation {
+                                origin.x: width / 2
+                                origin.y: height / 2
+                                axis { x: 0; y: 1; z: 0 }
+                                angle: 180
+                            }
+
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: vpx(2)
+                                source: game && game.assets.boxBack ? game.assets.boxBack : Utils.boxArt(game)
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                smooth: true
+                            }
+                        }
+
+                        // 3. RIGHT FACE (Spine)
                         Rectangle {
                             id: rightFace
                             width: vpx(25)
                             height: frontFace.height
-                            anchors.left: frontFace.right
-                            anchors.top: frontFace.top
+                            x: frontFace.width / 2
+                            y: 0
+                            z: 5
                             color: "#1e1e22"
                             border.color: "#000000"
                             border.width: 1
 
-                            // Hinge: Folds backward exactly 90 degrees on its left edge
                             transform: Rotation {
                                 origin.x: 0
                                 origin.y: rightFace.height / 2
@@ -469,38 +484,38 @@ id: root
                             }
                         }
 
-                        // 3. LEFT FACE
+                        // 4. LEFT FACE
                         Rectangle {
                             id: leftFace
                             width: vpx(25)
                             height: frontFace.height
-                            anchors.right: frontFace.left
-                            anchors.top: frontFace.top
+                            x: -width / 2
+                            y: 0
+                            z: 5
                             color: "#151518"
                             border.color: "#000000"
                             border.width: 1
 
-                            // Hinge: Folds backward exactly 90 degrees on its right edge
                             transform: Rotation {
-                                origin.x: leftFace.width
+                                origin.x: width
                                 origin.y: leftFace.height / 2
                                 axis { x: 0; y: 1; z: 0 }
                                 angle: -90
                             }
                         }
 
-                        // 4. TOP FACE
+                        // 5. TOP FACE
                         Rectangle {
                             id: topFace
                             width: frontFace.width
                             height: vpx(25)
-                            anchors.left: frontFace.left
-                            anchors.bottom: frontFace.top
+                            x: 0
+                            y: -height / 2
+                            z: 5
                             color: "#2a2a2f"
                             border.color: "#000000"
                             border.width: 1
 
-                            // Hinge: Folds backward exactly 90 degrees on its bottom edge
                             transform: Rotation {
                                 origin.x: topFace.width / 2
                                 origin.y: topFace.height
@@ -509,18 +524,18 @@ id: root
                             }
                         }
 
-                        // 5. BOTTOM FACE
+                        // 6. BOTTOM FACE
                         Rectangle {
                             id: bottomFace
                             width: frontFace.width
                             height: vpx(25)
-                            anchors.left: frontFace.left
-                            anchors.top: frontFace.bottom
+                            x: 0
+                            y: height / 2
+                            z: 5
                             color: "#111114"
                             border.color: "#000000"
                             border.width: 1
 
-                            // Hinge: Folds backward exactly 90 degrees on its top edge
                             transform: Rotation {
                                 origin.x: bottomFace.width / 2
                                 origin.y: 0
