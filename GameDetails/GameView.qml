@@ -445,7 +445,7 @@ id: root
                                 id: detailSpineImg
                                 width:  boxart.boxH
                                 height: boxart.boxD
-                                source: game ? game.assets.boxSide : ""
+                                source: game ? game.assets.boxSpine : ""
                                 fillMode: Image.Stretch
                                 asynchronous: true
                                 smooth: true
@@ -453,7 +453,7 @@ id: root
                                 rotation: 90
                                 x: 0
                                 y: -boxart.boxD
-                                visible: status === Image.Ready && (game && game.assets.boxSide)
+                                visible: status === Image.Ready && (game && game.assets.boxSpine)
                             }
                             Rectangle {
                                 anchors.fill: parent
