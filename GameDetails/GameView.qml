@@ -33,6 +33,7 @@ id: root
     property string collectionName: game ? game.collections.get(0).name : ""
     property string collectionShortName: game ? game.collections.get(0).shortName : ""
     property bool iamsteam: game ? (collectionShortName == "steam") : false
+    property bool isPS3: game ? (collectionShortName == "ps3") : false
     property bool canPlayVideo: settings.VideoPreview === "Yes"
     property real detailsOpacity: (settings.DetailsDefault === "Yes") ? 1 : 0
     property bool blurBG: settings.GameBlurBackground === "Yes"
@@ -49,9 +50,8 @@ id: root
     ListPublisher { id: publisherCollection; publisher: game && game.publisher ? game.publisher : ""; max: 10 }
     ListGenre { id: genreCollection; genre: game ? game.genreList[0] : ""; max: 10 }
 
-    // Combine the video and the screenshot arrays into one
     function mediaArray() {
-        let mediaList = [];
+        var mediaList = [];
         if (game && game.assets.video)
             game.assets.videoList.forEach(v => mediaList.push(v));
 
@@ -63,7 +63,6 @@ id: root
         return mediaList;
     }
 
-    // Reset the screen to default state
     function reset() {
         content.currentIndex = 0;
         menu.currentIndex = 0;
@@ -73,9 +72,10 @@ id: root
         screenshot.opacity = 1;
         mediaScreen.opacity = 0;
         toggleVideo(true);
+        box3dRotY = -25;
+        box3dRotX = 10;
     }
 
-    // Show/hide the details overlay
     function showDetails() {
         if (detailsOpacity === 1) {
             toggleVideo(true);
@@ -87,7 +87,6 @@ id: root
         }
     }
 
-    // Show/hide the media view
     function showMedia(index) {
         sfxAccept.play();
         mediaScreen.mediaIndex = index;
@@ -102,36 +101,31 @@ id: root
         currentHelpbarModel = gameviewHelpModel;
     }
 
+    property real box3dRotY: -25
+    property real box3dRotX: 10
+
     onGameChanged: reset();
 
     anchors.fill: parent
 
     GridSpacer {
     id: fakebox
-        
         width: vpx(100); height: vpx(100)
     }
 
-    // Video
-    // Show/hide the video
     function toggleVideo(toggle) {
-      if (!toggle)
-      {
-        // Turn off video
+      if (!toggle) {
         screenshot.opacity = 1;
         stopvideo.restart();
       } else {
         stopvideo.stop();
-        // Turn on video
         if (canPlayVideo)
             videoDelay.restart();
       }
     }
 
-    // Timer to show the video
     Timer {
     id: videoDelay
-
         interval: 1000
         onTriggered: {
             if (game && game.assets.videos.length && canPlayVideo) {
@@ -141,10 +135,8 @@ id: root
         }
     }
 
-    // NOTE: Next fade out the bg so there is a smooth transition into the video
     Timer {
     id: fadescreenshot
-
         interval: 1000
         onTriggered: {
             screenshot.opacity = 0;
@@ -155,7 +147,6 @@ id: root
 
     Timer {
     id: stopvideo
-
         interval: 1000
         onTriggered: {
             videoPreviewLoader.sourceComponent = undefined;
@@ -164,13 +155,10 @@ id: root
         }
     }
 
-    // NOTE: Video Preview
     Component {
     id: videoPreviewWrapper
-
         Video {
         id: videocomponent
-
             property bool videoExists: game ? game.assets.videos.length : false
             source: videoExists ? game.assets.videos[0] : ""
             anchors.fill: parent
@@ -178,23 +166,17 @@ id: root
             muted: settings.AllowVideoPreviewAudio === "No"
             loops: MediaPlayer.Infinite
             autoPlay: true
-            //onPlaying: videocomponent.seek(5000)
         }
-
     }
 
-    // Video
     Loader {
     id: videoPreviewLoader
-
         asynchronous: true
         anchors { fill: parent }
     }
 
-    // Background
     Image {
     id: screenshot
-
         anchors.fill: parent
         asynchronous: true
         property int randoScreenshotNumber: {
@@ -209,7 +191,6 @@ id: root
             else
                 return 0;
         }
-
         property var randoScreenshot: game ? game.assets.screenshotList[randoScreenshotNumber] : ""
         property var randoFanart: game ? game.assets.backgroundList[randoFanartNumber] : ""
         property var actualBackground: (settings.GameBackground === "Screenshot") ? randoScreenshot : Utils.fanArt(game) || randoFanart;
@@ -221,6 +202,7 @@ id: root
     }
 
     FastBlur {
+        id: bgBlur
         anchors.fill: screenshot
         source: screenshot
         radius: 64
@@ -229,10 +211,8 @@ id: root
         visible: blurBG
     }
 
-    // Scanlines
     Image {
     id: scanlines
-
         anchors.fill: parent
         source: "../assets/images/scanlines_v3.png"
         asynchronous: true
@@ -240,12 +220,10 @@ id: root
         visible: !iamsteam && (settings.ShowScanlines == "Yes")
     }
 
-    // Clear logo
     Image {
     id: logo
-
         anchors { 
-            top: parent.top; //topMargin: vpx(70)
+            top: parent.top
             left: parent.left; leftMargin: vpx(70)
         }
         width: vpx(500)
@@ -261,7 +239,6 @@ id: root
 
     DropShadow {
     id: logoshadow
-
         anchors.fill: logo
         horizontalOffset: 0
         verticalOffset: 0
@@ -274,19 +251,15 @@ id: root
         visible: settings.GameLogo === "Show"
     }
 
-    // Platform title
     Text {
     id: gametitle
-        
         text: game.title
-        
         anchors {
-            top:    logo.top;
-            left:   logo.left;//    leftMargin: globalMargin
-            right:  parent.right;
+            top: logo.top
+            left: logo.left
+            right: parent.right
             bottom: logo.bottom
         }
-        
         color: theme.text
         font.family: titleFont.name
         font.pixelSize: vpx(80)
@@ -300,10 +273,8 @@ id: root
         opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 1
     }
 
-    // Gradient
     LinearGradient {
     id: bggradient
-
         width: parent.width
         height: parent.height/2
         start: Qt.point(0, 0)
@@ -318,7 +289,6 @@ id: root
 
     Rectangle {
     id: overlay
-
         color: theme.gradientend
         anchors {
             left: parent.left; right: parent.right
@@ -326,12 +296,10 @@ id: root
         }
     }
 
-    
-
     // Details screen
     Item {
     id: detailsScreen
-        
+        z: 20 
         anchors.fill: parent
         visible: opacity !== 0
         opacity: (content.currentIndex !== 0) ? 0 : detailsOpacity
@@ -345,7 +313,6 @@ id: root
 
         Item {
         id: details 
-
             anchors { 
                 top: parent.top; topMargin: vpx(100)
                 left: parent.left; leftMargin: vpx(70)
@@ -353,42 +320,252 @@ id: root
             }
             height: vpx(450) - header.height
 
-            Image {
-            id: boxart
-
-                source: Utils.boxArt(game);
-                //width: vpx(350)
+            Item {
+            id: boxartContainer
+                width: vpx(350)
                 height: parent.height
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                smooth: true
+
+                // Regular boxart (non-PS3)
+                Image {
+                id: boxart
+                    source: Utils.boxArt(game)
+                    height: parent.height
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    visible: !isPS3
+                }
+
+                // 3D Box Art for PS3
+                Item {
+                id: box3d
+                    anchors.fill: parent
+                    visible: isPS3
+
+                    // Drop Shadow (Flat, doesn't rotate with box)
+                    Rectangle {
+                        id: boxShadow
+                        anchors.centerIn: parent
+                        width: parent.width * 0.85
+                        height: parent.height * 0.92
+                        x: vpx(8); y: vpx(12)
+                        radius: vpx(4)
+                        color: "#000000"
+                        opacity: 0.6
+                        z: -1
+                    }
+
+                    // Mouse area handles dragging (Sits above everything)
+                    MouseArea {
+                        id: dragArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        z: 100 
+
+                        property real lastMouseX: 0
+                        property real lastMouseY: 0
+                        property bool isDragging: false
+
+                        onPressed: {
+                            mouse.accepted = true
+                            lastMouseX = mouse.x
+                            lastMouseY = mouse.y
+                            isDragging = true
+                        }
+
+                        onPositionChanged: {
+                            if (isDragging) {
+                                mouse.accepted = true 
+                                box3dRotY = Math.max(-80, Math.min(45, box3dRotY + (mouse.x - lastMouseX) * 0.5))
+                                box3dRotX = Math.max(-40, Math.min(45, box3dRotX - (mouse.y - lastMouseY) * 0.5))
+                                lastMouseX = mouse.x
+                                lastMouseY = mouse.y
+                            }
+                        }
+
+                        onReleased: {
+                            mouse.accepted = true
+                            isDragging = false
+                        }
+                    }
+
+                    // THE PARENT PIVOT: Applies pure rotation to the whole group
+                    Item {
+                    id: boxRoot
+                        anchors.centerIn: parent
+                        width: parent.width * 0.85
+                        height: parent.height * 0.92
+
+                        // Rigid rotation applied to the whole box
+                        transform: [
+                            Rotation {
+                                origin.x: boxRoot.width / 2
+                                origin.y: boxRoot.height / 2
+                                axis { x: 0; y: 1; z: 0 }
+                                angle: box3dRotY
+                            },
+                            Rotation {
+                                origin.x: boxRoot.width / 2
+                                origin.y: boxRoot.height / 2
+                                axis { x: 1; y: 0; z: 0 }
+                                angle: box3dRotX
+                            }
+                        ]
+
+                        // 1. FRONT FACE
+                        Rectangle {
+                            id: frontFace
+                            anchors.fill: parent
+                            color: "#111111"
+                            border.color: "#000000"
+                            border.width: 2
+
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: vpx(2)
+                                source: game && game.assets.boxFront ? game.assets.boxFront : Utils.boxArt(game)
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                smooth: true
+                            }
+
+                            // Subtle plastic shine
+                            Rectangle {
+                                anchors.fill: parent
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#25ffffff" }
+                                    GradientStop { position: 0.5; color: "#00ffffff" }
+                                    GradientStop { position: 1.0; color: "#10000000" }
+                                }
+                            }
+                        }
+
+                        // 2. RIGHT FACE (Spine)
+                        Rectangle {
+                            id: rightFace
+                            width: vpx(25)
+                            height: frontFace.height
+                            anchors.left: frontFace.right
+                            anchors.top: frontFace.top
+                            color: "#1e1e22"
+                            border.color: "#000000"
+                            border.width: 1
+
+                            // Hinge: Folds backward exactly 90 degrees on its left edge
+                            transform: Rotation {
+                                origin.x: 0
+                                origin.y: rightFace.height / 2
+                                axis { x: 0; y: 1; z: 0 }
+                                angle: 90
+                            }
+
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: vpx(1)
+                                source: game && game.assets.boxSide ? game.assets.boxSide : (game && game.assets.boxSpine ? game.assets.boxSpine : "")
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                smooth: true
+                            }
+                        }
+
+                        // 3. LEFT FACE
+                        Rectangle {
+                            id: leftFace
+                            width: vpx(25)
+                            height: frontFace.height
+                            anchors.right: frontFace.left
+                            anchors.top: frontFace.top
+                            color: "#151518"
+                            border.color: "#000000"
+                            border.width: 1
+
+                            // Hinge: Folds backward exactly 90 degrees on its right edge
+                            transform: Rotation {
+                                origin.x: leftFace.width
+                                origin.y: leftFace.height / 2
+                                axis { x: 0; y: 1; z: 0 }
+                                angle: -90
+                            }
+                        }
+
+                        // 4. TOP FACE
+                        Rectangle {
+                            id: topFace
+                            width: frontFace.width
+                            height: vpx(25)
+                            anchors.left: frontFace.left
+                            anchors.bottom: frontFace.top
+                            color: "#2a2a2f"
+                            border.color: "#000000"
+                            border.width: 1
+
+                            // Hinge: Folds backward exactly 90 degrees on its bottom edge
+                            transform: Rotation {
+                                origin.x: topFace.width / 2
+                                origin.y: topFace.height
+                                axis { x: 1; y: 0; z: 0 }
+                                angle: -90
+                            }
+                        }
+
+                        // 5. BOTTOM FACE
+                        Rectangle {
+                            id: bottomFace
+                            width: frontFace.width
+                            height: vpx(25)
+                            anchors.left: frontFace.left
+                            anchors.top: frontFace.bottom
+                            color: "#111114"
+                            border.color: "#000000"
+                            border.width: 1
+
+                            // Hinge: Folds backward exactly 90 degrees on its top edge
+                            transform: Rotation {
+                                origin.x: bottomFace.width / 2
+                                origin.y: 0
+                                axis { x: 1; y: 0; z: 0 }
+                                angle: 90
+                            }
+                        }
+                    }
+
+                    // Drag hint text
+                    Text {
+                        anchors {
+                            bottom: parent.bottom
+                            horizontalCenter: parent.horizontalCenter
+                            bottomMargin: vpx(5)
+                        }
+                        text: "↔ Drag to rotate"
+                        color: "#80ffffff"
+                        font.pixelSize: vpx(12)
+                        font.italic: true
+                        visible: dragArea.containsMouse && !dragArea.isDragging
+                    }
+                }
             }
 
             GameInfo {
             id: info
-
                 anchors {
-                    left: boxart.right; leftMargin: vpx(30)
+                    left: boxartContainer.right; leftMargin: vpx(30)
                     top: parent.top; bottom: parent.bottom; right: parent.right
                 }
             }
         }
     }
 
-    // Header
     Item {
     id: header
-
         anchors {
             left: parent.left; 
             right: parent.right
         }
         height: vpx(75)
 
-        // Platform logo
         Image {
         id: logobg
-
             anchors.fill: platformlogo
             source: "../assets/images/gradient.png"
             asynchronous: true
@@ -397,7 +574,6 @@ id: root
 
         Image {
         id: platformlogo
-
             anchors {
                 top: parent.top; topMargin: vpx(20)
                 bottom: parent.bottom; bottomMargin: vpx(20)
@@ -416,7 +592,6 @@ id: root
             source: logobg
             maskSource: platformlogo
             
-            // Mouse/touch functionality
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: settings.MouseHover == "Yes"
@@ -424,19 +599,15 @@ id: root
             }
         }
 
-        // Platform title
         Text {
         id: softwareplatformtitle
-            
             text: game.collections.get(0).name
-            
             anchors {
-                top:    parent.top;
-                left:   parent.left;    leftMargin: globalMargin
-                right:  parent.right
+                top: parent.top
+                left: parent.left; leftMargin: globalMargin
+                right: parent.right
                 bottom: parent.bottom
             }
-            
             color: theme.text
             font.family: titleFont.name
             font.pixelSize: vpx(30)
@@ -446,7 +617,6 @@ id: root
             elide: Text.ElideRight
             visible: platformlogo.status == Image.Error
 
-            // Mouse/touch functionality
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: settings.MouseHover == "Yes"
@@ -456,14 +626,11 @@ id: root
         z: 10
     }
 
-
-    // Game menu
     ObjectModel {
     id: menuModel
 
         Button { 
         id: button1 
-
             text: "Play game"
             height: parent.height
             selected: ListView.isCurrentItem && menu.focus
@@ -480,7 +647,6 @@ id: root
 
         Button { 
         id: button2 
-
             icon: "../assets/images/icon_details.svg"
             height: parent.height
             selected: ListView.isCurrentItem && menu.focus
@@ -497,9 +663,7 @@ id: root
 
         Button { 
         id: button3 
-
             property string buttonText: game && game.favorite ? "Unfavorite" : "Add favorite"
-            //text: buttonText
             icon: favIcon
             height: parent.height
             selected: ListView.isCurrentItem && menu.focus
@@ -516,8 +680,6 @@ id: root
         
         Button { 
         id: button4
-
-            //text: "Back"
             icon: "../assets/images/icon_back.svg"
             height: parent.height
             selected: ListView.isCurrentItem && menu.focus
@@ -532,14 +694,11 @@ id: root
         }
     }
 
-    // Full list
     ObjectModel {
     id: extrasModel
 
-        // Game menu
         ListView {
         id: menu
-
             property bool selected: parent.focus
             focus: selected
             width: parent.width
@@ -554,14 +713,12 @@ id: root
 
         HorizontalCollection {
         id: media
-
             width: root.width - vpx(70) - globalMargin
             height: ((root.width - globalMargin * 2) / 6.0) + vpx(60)
             title: "Media"
             model: game ? mediaArray() : []
             delegate: MediaItem {
             id: mediadelegate
-
                 width: (root.width - globalMargin * 2) / 6.0
                 height: width
                 selected: ListView.isCurrentItem && media.ListView.isCurrentItem
@@ -574,56 +731,46 @@ id: root
                 }
 
                 onActivated: {
-                if (selected)
-                    showMedia(index);
-                else
-                {
-                    sfxNav.play(); 
-                    media.currentIndex = index;
-                    content.currentIndex = media.ObjectModel.index;
+                    if (selected)
+                        showMedia(index);
+                    else {
+                        sfxNav.play(); 
+                        media.currentIndex = index;
+                        content.currentIndex = media.ObjectModel.index;
+                    }
                 }
             }
-            }
-            
         }
 
-        // More by publisher
         HorizontalCollection {
         id: list1
-
             property bool selected: ListView.isCurrentItem
             focus: selected
             width: root.width - vpx(70) - globalMargin
             height: itemHeight + vpx(60)
             itemWidth: (root.width - globalMargin * 2) / 4.0
             itemHeight: itemWidth * settings.WideRatio
-
             title: game ? "More games by " + game.publisher : ""
             search: publisherCollection
             onListHighlighted: { sfxNav.play(); content.currentIndex = list1.ObjectModel.index; }
         }
 
-        // More in genre
         HorizontalCollection {
         id: list2
-
             property bool selected: ListView.isCurrentItem
             focus: selected
             width: root.width - vpx(70) - globalMargin
             height: itemHeight + vpx(60)
             itemWidth: (root.width - globalMargin * 2) / 8.0
             itemHeight: itemWidth / settings.TallRatio
-
             title: game ? "More " + game.genreList[0].toLowerCase() + " games" : ""
             search: genreCollection
             onListHighlighted: { sfxNav.play(); content.currentIndex = list2.ObjectModel.index; }
         }
-        
     }
 
     ListView {
     id: content
-
         anchors {
             left: parent.left; leftMargin: vpx(70)
             right: parent.right
@@ -653,19 +800,15 @@ id: root
 
     MediaView {
     id: mediaScreen
-        
         anchors.fill: parent
         Behavior on opacity { NumberAnimation { duration: 100 } }
         visible: opacity != 0
-
-        mediaModel: mediaArray();
+        mediaModel: mediaArray()
         mediaIndex: media.currentIndex != -1 ? media.currentIndex : 0
-        onClose: closeMedia();
+        onClose: closeMedia()
     }
 
-    // Input handling
     Keys.onPressed: {
-        // Back
         if (api.keys.isCancel(event) && !event.isAutoRepeat) {
             event.accepted = true;
             if (mediaScreen.visible)
@@ -673,7 +816,6 @@ id: root
             else
                 previousScreen();
         }
-        // Filters
         if (api.keys.isFilters(event) && !event.isAutoRepeat) {
             event.accepted = true;
             sfxAccept.play();
@@ -681,22 +823,11 @@ id: root
         }
     }
 
-    // Helpbar buttons
     ListModel {
         id: gameviewHelpModel
-
-        ListElement {
-            name: "Back"
-            button: "cancel"
-        }
-        ListElement {
-            name: "Toggle favorite"
-            button: "filters"
-        }
-        ListElement {
-            name: "Launch"
-            button: "accept"
-        }
+        ListElement { name: "Back"; button: "cancel" }
+        ListElement { name: "Toggle favorite"; button: "filters" }
+        ListElement { name: "Launch"; button: "accept" }
     }
     
     onFocusChanged: { 
@@ -709,5 +840,4 @@ id: root
             toggleVideo(false);
         }
     }
-
 }
