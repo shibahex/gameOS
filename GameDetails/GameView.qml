@@ -26,791 +26,775 @@ import "../Lists"
 import "../utils.js" as Utils
 
 FocusScope {
-id: root
+  id: root
 
-    property var game: api.allGames.get(0)
-    property string favIcon: game && game.favorite ? "../assets/images/icon_unheart.svg" : "../assets/images/icon_heart.svg"
-    property string collectionName: game ? game.collections.get(0).name : ""
-    property string collectionShortName: game ? game.collections.get(0).shortName : ""
-    property bool iamsteam: game ? (collectionShortName == "steam") : false
-    property bool isPS3: game ? (collectionShortName == "ps3") : false
-    property bool canPlayVideo: settings.VideoPreview === "Yes"
-    property real detailsOpacity: (settings.DetailsDefault === "Yes") ? 1 : 0
-    property bool blurBG: settings.GameBlurBackground === "Yes"
-    property string publisherName: {
-        if (game !== null && game.publisher !== null) {
-            var str = game.publisher;
-            var result = str.split(" ");
-            return result[0]
-        } else {
-            return ""
-        }
+  property var game: api.allGames.get(0)
+  property string favIcon: game && game.favorite ? "../assets/images/icon_unheart.svg" : "../assets/images/icon_heart.svg"
+  property string collectionName: game ? game.collections.get(0).name : ""
+  property string collectionShortName: game ? game.collections.get(0).shortName : ""
+  property bool iamsteam: game ? (collectionShortName == "steam") : false
+  property bool isPS3: game ? (collectionShortName == "ps3") : false
+  property bool canPlayVideo: settings.VideoPreview === "Yes"
+  property real detailsOpacity: (settings.DetailsDefault === "Yes") ? 1 : 0
+  property bool blurBG: settings.GameBlurBackground === "Yes"
+  property string publisherName: {
+    if (game !== null && game.publisher !== null) {
+      var str = game.publisher;
+      var result = str.split(" ");
+      return result[0]
+    } else {
+      return ""
     }
-    
-    ListPublisher { id: publisherCollection; publisher: game && game.publisher ? game.publisher : ""; max: 10 }
-    ListGenre { id: genreCollection; genre: game ? game.genreList[0] : ""; max: 10 }
+  }
 
-    function mediaArray() {
-        var mediaList = [];
-        if (game && game.assets.video)
-            game.assets.videoList.forEach(v => mediaList.push(v));
+  ListPublisher { id: publisherCollection; publisher: game && game.publisher ? game.publisher : ""; max: 10 }
+  ListGenre { id: genreCollection; genre: game ? game.genreList[0] : ""; max: 10 }
 
-        if (game) {
-            game.assets.screenshotList.forEach(v => mediaList.push(v));
-            game.assets.backgroundList.forEach(v => mediaList.push(v));
-        }
+  function mediaArray() {
+    var mediaList = [];
+    if (game && game.assets.video)
+    game.assets.videoList.forEach(v => mediaList.push(v));
 
-        return mediaList;
+    if (game) {
+      game.assets.screenshotList.forEach(v => mediaList.push(v));
+      game.assets.backgroundList.forEach(v => mediaList.push(v));
     }
 
-    function reset() {
-        content.currentIndex = 0;
-        menu.currentIndex = 0;
-        media.savedIndex = 0;
-        list1.savedIndex = 0;
-        list2.savedIndex = 0;
-        screenshot.opacity = 1;
-        mediaScreen.opacity = 0;
-        toggleVideo(true);
+    return mediaList;
+  }
+
+  function reset() {
+    content.currentIndex = 0;
+    menu.currentIndex = 0;
+    media.savedIndex = 0;
+    list1.savedIndex = 0;
+    list2.savedIndex = 0;
+    screenshot.opacity = 1;
+    mediaScreen.opacity = 0;
+    toggleVideo(true);
+  }
+
+  function showDetails() {
+    if (detailsOpacity === 1) {
+      toggleVideo(true);
+      detailsOpacity = 0;
     }
-
-    function showDetails() {
-        if (detailsOpacity === 1) {
-            toggleVideo(true);
-            detailsOpacity = 0;
-        }
-        else {
-            detailsOpacity = 1;
-            toggleVideo(false);
-        }
+    else {
+      detailsOpacity = 1;
+      toggleVideo(false);
     }
+  }
 
-    function showMedia(index) {
-        sfxAccept.play();
-        mediaScreen.mediaIndex = index;
-        mediaScreen.focus = true;
-        mediaScreen.opacity = 1;
-    }
+  function showMedia(index) {
+    sfxAccept.play();
+    mediaScreen.mediaIndex = index;
+    mediaScreen.focus = true;
+    mediaScreen.opacity = 1;
+  }
 
-    function closeMedia() {
-        sfxBack.play();
-        mediaScreen.opacity = 0;
-        content.focus = true;
-        currentHelpbarModel = gameviewHelpModel;
-    }
+  function closeMedia() {
+    sfxBack.play();
+    mediaScreen.opacity = 0;
+    content.focus = true;
+    currentHelpbarModel = gameviewHelpModel;
+  }
 
-    onGameChanged: reset();
+  onGameChanged: reset();
 
-    anchors.fill: parent
+  anchors.fill: parent
 
-    GridSpacer {
+  GridSpacer {
     id: fakebox
-        width: vpx(100); height: vpx(100)
+    width: vpx(100); height: vpx(100)
+  }
+
+  function toggleVideo(toggle) {
+    if (!toggle) {
+      screenshot.opacity = 1;
+      stopvideo.restart();
+    } else {
+      stopvideo.stop();
+      if (canPlayVideo)
+      videoDelay.restart();
+    }
+  }
+
+  Timer {
+    id: videoDelay
+    interval: 1000
+    onTriggered: {
+      if (game && game.assets.videos.length && canPlayVideo) {
+        videoPreviewLoader.sourceComponent = videoPreviewWrapper;
+        fadescreenshot.restart();
+      }
+    }
+  }
+
+  Timer {
+    id: fadescreenshot
+    interval: 1000
+    onTriggered: {
+      screenshot.opacity = 0;
+      if (blurBG)
+      bgBlur.opacity = 0;
+    }
+  }
+
+  Timer {
+    id: stopvideo
+    interval: 1000
+    onTriggered: {
+      videoPreviewLoader.sourceComponent = undefined;
+      videoDelay.stop();
+      fadescreenshot.stop();
+    }
+  }
+
+  Component {
+    id: videoPreviewWrapper
+    Video {
+      id: videocomponent
+      property bool videoExists: game ? game.assets.videos.length : false
+      source: videoExists ? game.assets.videos[0] : ""
+      anchors.fill: parent
+      fillMode: VideoOutput.PreserveAspectCrop
+      muted: settings.AllowVideoPreviewAudio === "No"
+      loops: MediaPlayer.Infinite
+      autoPlay: true
+    }
+  }
+
+  Loader {
+    id: videoPreviewLoader
+    asynchronous: true
+    anchors { fill: parent }
+  }
+
+  Image {
+    id: screenshot
+    anchors.fill: parent
+    asynchronous: true
+    property int randoScreenshotNumber: {
+      if (game && settings.GameRandomBackground === "Yes")
+      return Math.floor(Math.random() * game.assets.screenshotList.length);
+      else
+      return 0;
+    }
+    property int randoFanartNumber: {
+      if (game && settings.GameRandomBackground === "Yes")
+      return Math.floor(Math.random() * game.assets.backgroundList.length);
+      else
+      return 0;
+    }
+    property var randoScreenshot: game ? game.assets.screenshotList[randoScreenshotNumber] : ""
+    property var randoFanart: game ? game.assets.backgroundList[randoFanartNumber] : ""
+    property var actualBackground: (settings.GameBackground === "Screenshot") ? randoScreenshot : Utils.fanArt(game) || randoFanart;
+    source: actualBackground || ""
+    fillMode: Image.PreserveAspectCrop
+    smooth: true
+    Behavior on opacity { NumberAnimation { duration: 500 } }
+    visible: !blurBG
+  }
+
+  FastBlur {
+    id: bgBlur
+    anchors.fill: screenshot
+    source: screenshot
+    radius: 64
+    opacity: screenshot.opacity
+    Behavior on opacity { NumberAnimation { duration: 500 } }
+    visible: blurBG
+  }
+
+  Image {
+    id: scanlines
+    anchors.fill: parent
+    source: "../assets/images/scanlines_v3.png"
+    asynchronous: true
+    opacity: 0.2
+    visible: !iamsteam && (settings.ShowScanlines == "Yes")
+  }
+
+  Image {
+    id: logo
+    anchors { 
+      top: parent.top
+      left: parent.left; leftMargin: vpx(70)
+    }
+    width: vpx(500)
+    height: vpx(450) + header.height
+    source: game ? Utils.logo(game) : ""
+    fillMode: Image.PreserveAspectFit
+    asynchronous: true
+    opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 1
+    Behavior on opacity { NumberAnimation { duration: 200 } }
+    z: (content.currentIndex == 0) ? 10 : -10
+    visible: settings.GameLogo === "Show"
+  }
+
+  DropShadow {
+    id: logoshadow
+    anchors.fill: logo
+    horizontalOffset: 0
+    verticalOffset: 0
+    radius: 8.0
+    samples: 12
+    color: "#000000"
+    source: logo
+    opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 0.4
+    Behavior on opacity { NumberAnimation { duration: 200 } }
+    visible: settings.GameLogo === "Show"
+  }
+
+  Text {
+    id: gametitle
+    text: game.title
+    anchors {
+      top: logo.top
+      left: logo.left
+      right: parent.right
+      bottom: logo.bottom
+    }
+    color: theme.text
+    font.family: titleFont.name
+    font.pixelSize: vpx(80)
+    font.bold: true
+    horizontalAlignment: Text.AlignHLeft
+    verticalAlignment: Text.AlignVCenter
+    elide: Text.ElideRight
+    wrapMode: Text.WordWrap
+    lineHeight: 0.8
+    visible: logo.source === "" || settings.GameLogo === "Text only"
+    opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 1
+  }
+
+  LinearGradient {
+    id: bggradient
+    width: parent.width
+    height: parent.height/2
+    start: Qt.point(0, 0)
+    end: Qt.point(0, height)
+    gradient: Gradient {
+      GradientStop { position: 0.0; color: theme.gradientstart }
+      GradientStop { position: 0.7; color: theme.gradientend }
+    }
+    y: (content.currentIndex == 0) ? height : -height
+    Behavior on y { NumberAnimation { duration: 200 } }
+  }
+
+  Rectangle {
+    id: overlay
+    color: theme.gradientend
+    anchors {
+      left: parent.left; right: parent.right
+      top: bggradient.bottom; bottom: parent.bottom
+    }
+  }
+
+  // Details screen
+  Item {
+    id: detailsScreen
+    z: 20 
+    anchors.fill: parent
+    visible: opacity !== 0
+    opacity: (content.currentIndex !== 0) ? 0 : detailsOpacity
+    Behavior on opacity { NumberAnimation { duration: 200 } }
+
+    Rectangle {
+      anchors.fill: parent
+      color: theme.main
+      opacity: 0.7
     }
 
-    function toggleVideo(toggle) {
-      if (!toggle) {
-        screenshot.opacity = 1;
-        stopvideo.restart();
-      } else {
-        stopvideo.stop();
-        if (canPlayVideo)
-            videoDelay.restart();
+    Item {
+      id: details 
+      anchors { 
+        top: parent.top; topMargin: vpx(100)
+        left: parent.left; leftMargin: vpx(70)
+        right: parent.right; rightMargin: vpx(70)
+      }
+      height: vpx(450) - header.height
+
+      Item {
+        id: boxartContainer
+        width: vpx(350)
+        height: parent.height
+
+        // Regular boxart (non-PS3)
+        Image {
+          id: boxartFallback
+          source: Utils.boxArt(game)
+          height: parent.height
+          fillMode: Image.PreserveAspectFit
+          asynchronous: true
+          smooth: true
+          visible: !isPS3
+        }
+
+        // ── 3D Box in details panel ───────────────────────────────────────
+        Item {
+          id: boxart
+          anchors.fill: parent
+          visible: isPS3
+
+          property real boxW: vpx(130*1.5)
+          property real boxH: vpx(190*1.5)
+          property real boxD: vpx(14*1.5)
+          property real rotY: 0
+          property int rotDir: 0
+
+          Timer {
+            id: rotTimer
+            interval: 16
+            repeat: true
+            running: boxart.rotDir !== 0 && detailsScreen.opacity > 0
+            onTriggered: {
+              var next = boxart.rotY + boxart.rotDir * 2
+              boxart.rotY = Math.max(-180, Math.min(180, next))
+            }
+          }
+
+          property real rad:   rotY * Math.PI / 180
+          property real cosR:  Math.cos(rad)
+          property real sinR:  Math.sin(rad)
+
+          property real frontW: boxW * Math.abs(cosR)
+          property real spineW: boxD * Math.abs(sinR)
+
+          property bool frontVisible:     cosR >= 0
+          property bool spineFrontFacing: sinR >= 0
+
+          // Spine stays on the correct physical edge through full rotation
+          property bool spineOnLeft: (sinR >= 0) === frontVisible
+
+          property real spineX: spineOnLeft ? 0      : frontW
+          property real frontX: spineOnLeft ? spineW : 0
+
+          property real frontBright: 0.72 + 0.28 * Math.abs(cosR)
+          property real spineBright: spineFrontFacing ? (0.30 + 0.25 * Math.abs(sinR)) : 0
+
+          Item {
+            width:  boxart.frontW + boxart.spineW
+            height: boxart.boxH
+            anchors.centerIn: parent
+
+            // ── Front face ──
+            Item {
+              x: boxart.frontX; y: 0
+              width: boxart.frontW; height: boxart.boxH
+              clip: true
+              visible: boxart.frontVisible
+
+              Image {
+                anchors.fill: parent
+                source: game ? game.assets.boxFront : ""
+                fillMode: Image.Stretch
+                asynchronous: true; smooth: true
+              }
+              Rectangle {
+                anchors.fill: parent
+                color: "black"
+                opacity: 1 - boxart.frontBright
+              }
+            }
+
+            // ── Back face ──
+            Item {
+              x: boxart.frontX; y: 0
+              width: boxart.frontW; height: boxart.boxH
+              clip: true
+              visible: !boxart.frontVisible
+
+              Image {
+                anchors.fill: parent
+                source: game ? game.assets.boxBack : ""
+                fillMode: Image.Stretch
+                asynchronous: true; smooth: true
+              }
+              Rectangle {
+                anchors.fill: parent
+                color: "#0d0d1a"
+                visible: !(game && game.assets.boxBack)
+              }
+              Rectangle {
+                anchors.fill: parent
+                color: "black"
+                opacity: 1 - boxart.frontBright
+              }
+            }
+            // ── Spine ──
+            Item {
+              id: spineContainer
+              x: boxart.spineX; y: 0
+              width: boxart.spineW; height: boxart.boxH
+
+              // Front of spine – normal image
+              Image {
+                id: spineFrontImg
+                anchors.fill: parent
+                source: game ? game.assets.boxSpine : ""
+                fillMode: Image.Stretch
+                asynchronous: true; smooth: true
+                visible: status === Image.Ready && boxart.spineFrontFacing
+              }
+
+              // Back of spine – flipped & dimmed
+              Image {
+                id: spineBackImg
+                anchors.fill: parent
+                source: game ? game.assets.boxSpine : ""
+                fillMode: Image.Stretch
+                asynchronous: true; smooth: true
+                transform: Scale {
+                  xScale: -1
+                  origin.x: width / 2
+                }
+                opacity: 0.15
+                visible: status === Image.Ready && !boxart.spineFrontFacing
+              }
+
+
+              // Darkening overlay
+              Rectangle {
+                anchors.fill: parent
+                color: "black"
+                opacity: 1 - boxart.spineBright
+                visible: spineFrontImg.visible || spineBackImg.visible
+              }
+            }
+          }
+
+          // ── Mouse drag to rotate ──
+          MouseArea {
+            anchors.fill: parent
+            property real lastX: 0
+            onPressed: { lastX = mouse.x }
+            onPositionChanged: {
+              var delta = mouse.x - lastX
+              lastX = mouse.x
+              var next = boxart.rotY + delta * 0.5
+              boxart.rotY = Math.max(-180, Math.min(180, next))
+            }
+          }
+        }
+        // ── End 3D Box ────────────────────────────────────────────────────
+      }
+
+      GameInfo {
+        id: info
+        anchors {
+          left: boxartContainer.right; leftMargin: vpx(30)
+          top: parent.top; bottom: parent.bottom; right: parent.right
+        }
+      }
+    }
+  }
+
+  Item {
+    id: header
+    anchors {
+      left: parent.left; 
+      right: parent.right
+    }
+    height: vpx(75)
+
+    Image {
+      id: logobg
+      anchors.fill: platformlogo
+      source: "../assets/images/gradient.png"
+      asynchronous: true
+      visible: false
+    }
+
+    Image {
+      id: platformlogo
+      anchors {
+        top: parent.top; topMargin: vpx(20)
+        bottom: parent.bottom; bottomMargin: vpx(20)
+        left: parent.left; leftMargin: globalMargin
+      }
+      fillMode: Image.PreserveAspectFit
+      source: "../assets/images/logospng/" + Utils.processPlatformName(game.collections.get(0).shortName) + ".png"
+      sourceSize: Qt.size(width, height)
+      smooth: true
+      visible: false
+      asynchronous: true           
+    }
+
+    OpacityMask {
+      anchors.fill: logobg
+      source: logobg
+      maskSource: platformlogo
+
+      MouseArea {
+        anchors.fill: parent
+        hoverEnabled: settings.MouseHover == "Yes"
+        onClicked: previousScreen();
       }
     }
 
-    Timer {
-    id: videoDelay
-        interval: 1000
-        onTriggered: {
-            if (game && game.assets.videos.length && canPlayVideo) {
-                videoPreviewLoader.sourceComponent = videoPreviewWrapper;
-                fadescreenshot.restart();
-            }
-        }
-    }
-
-    Timer {
-    id: fadescreenshot
-        interval: 1000
-        onTriggered: {
-            screenshot.opacity = 0;
-            if (blurBG)
-                bgBlur.opacity = 0;
-        }
-    }
-
-    Timer {
-    id: stopvideo
-        interval: 1000
-        onTriggered: {
-            videoPreviewLoader.sourceComponent = undefined;
-            videoDelay.stop();
-            fadescreenshot.stop();
-        }
-    }
-
-    Component {
-    id: videoPreviewWrapper
-        Video {
-        id: videocomponent
-            property bool videoExists: game ? game.assets.videos.length : false
-            source: videoExists ? game.assets.videos[0] : ""
-            anchors.fill: parent
-            fillMode: VideoOutput.PreserveAspectCrop
-            muted: settings.AllowVideoPreviewAudio === "No"
-            loops: MediaPlayer.Infinite
-            autoPlay: true
-        }
-    }
-
-    Loader {
-    id: videoPreviewLoader
-        asynchronous: true
-        anchors { fill: parent }
-    }
-
-    Image {
-    id: screenshot
-        anchors.fill: parent
-        asynchronous: true
-        property int randoScreenshotNumber: {
-            if (game && settings.GameRandomBackground === "Yes")
-                return Math.floor(Math.random() * game.assets.screenshotList.length);
-            else
-                return 0;
-        }
-        property int randoFanartNumber: {
-            if (game && settings.GameRandomBackground === "Yes")
-                return Math.floor(Math.random() * game.assets.backgroundList.length);
-            else
-                return 0;
-        }
-        property var randoScreenshot: game ? game.assets.screenshotList[randoScreenshotNumber] : ""
-        property var randoFanart: game ? game.assets.backgroundList[randoFanartNumber] : ""
-        property var actualBackground: (settings.GameBackground === "Screenshot") ? randoScreenshot : Utils.fanArt(game) || randoFanart;
-        source: actualBackground || ""
-        fillMode: Image.PreserveAspectCrop
-        smooth: true
-        Behavior on opacity { NumberAnimation { duration: 500 } }
-        visible: !blurBG
-    }
-
-    FastBlur {
-        id: bgBlur
-        anchors.fill: screenshot
-        source: screenshot
-        radius: 64
-        opacity: screenshot.opacity
-        Behavior on opacity { NumberAnimation { duration: 500 } }
-        visible: blurBG
-    }
-
-    Image {
-    id: scanlines
-        anchors.fill: parent
-        source: "../assets/images/scanlines_v3.png"
-        asynchronous: true
-        opacity: 0.2
-        visible: !iamsteam && (settings.ShowScanlines == "Yes")
-    }
-
-    Image {
-    id: logo
-        anchors { 
-            top: parent.top
-            left: parent.left; leftMargin: vpx(70)
-        }
-        width: vpx(500)
-        height: vpx(450) + header.height
-        source: game ? Utils.logo(game) : ""
-        fillMode: Image.PreserveAspectFit
-        asynchronous: true
-        opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 1
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-        z: (content.currentIndex == 0) ? 10 : -10
-        visible: settings.GameLogo === "Show"
-    }
-
-    DropShadow {
-    id: logoshadow
-        anchors.fill: logo
-        horizontalOffset: 0
-        verticalOffset: 0
-        radius: 8.0
-        samples: 12
-        color: "#000000"
-        source: logo
-        opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 0.4
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-        visible: settings.GameLogo === "Show"
-    }
-
     Text {
-    id: gametitle
-        text: game.title
-        anchors {
-            top: logo.top
-            left: logo.left
-            right: parent.right
-            bottom: logo.bottom
-        }
-        color: theme.text
-        font.family: titleFont.name
-        font.pixelSize: vpx(80)
-        font.bold: true
-        horizontalAlignment: Text.AlignHLeft
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-        wrapMode: Text.WordWrap
-        lineHeight: 0.8
-        visible: logo.source === "" || settings.GameLogo === "Text only"
-        opacity: (content.currentIndex !== 0 || detailsScreen.opacity !== 0) ? 0 : 1
-    }
+      id: softwareplatformtitle
+      text: game.collections.get(0).name
+      anchors {
+        top: parent.top
+        left: parent.left; leftMargin: globalMargin
+        right: parent.right
+        bottom: parent.bottom
+      }
+      color: theme.text
+      font.family: titleFont.name
+      font.pixelSize: vpx(30)
+      font.bold: true
+      horizontalAlignment: Text.AlignHLeft
+      verticalAlignment: Text.AlignVCenter
+      elide: Text.ElideRight
+      visible: platformlogo.status == Image.Error
 
-    LinearGradient {
-    id: bggradient
-        width: parent.width
-        height: parent.height/2
-        start: Qt.point(0, 0)
-        end: Qt.point(0, height)
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: theme.gradientstart }
-            GradientStop { position: 0.7; color: theme.gradientend }
-        }
-        y: (content.currentIndex == 0) ? height : -height
-        Behavior on y { NumberAnimation { duration: 200 } }
-    }
-
-    Rectangle {
-    id: overlay
-        color: theme.gradientend
-        anchors {
-            left: parent.left; right: parent.right
-            top: bggradient.bottom; bottom: parent.bottom
-        }
-    }
-
-    // Details screen
-    Item {
-    id: detailsScreen
-        z: 20 
+      MouseArea {
         anchors.fill: parent
-        visible: opacity !== 0
-        opacity: (content.currentIndex !== 0) ? 0 : detailsOpacity
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-        
-        Rectangle {
-            anchors.fill: parent
-            color: theme.main
-            opacity: 0.7
-        }
-
-        Item {
-        id: details 
-            anchors { 
-                top: parent.top; topMargin: vpx(100)
-                left: parent.left; leftMargin: vpx(70)
-                right: parent.right; rightMargin: vpx(70)
-            }
-            height: vpx(450) - header.height
-
-            Item {
-            id: boxartContainer
-                width: vpx(350)
-                height: parent.height
-
-                // Regular boxart (non-PS3)
-                Image {
-                id: boxartFallback
-                    source: Utils.boxArt(game)
-                    height: parent.height
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
-                    smooth: true
-                    visible: !isPS3
-                }
-
-                // ── 3D Box in details panel ───────────────────────────────────────
-                Item {
-                id: boxart
-                    anchors.fill: parent
-                    visible: isPS3
-
-                    // Box proportions: PS3 Blu-ray case
-                    property real boxW: vpx(130)
-                    property real boxH: vpx(190)
-                    property real boxD: vpx(14)
-
-                    // Rotation controlled by left/right input — clamped -180 to +180
-                    property real rotY: 0
-
-                    // Which direction is held: -1 left, 0 none, +1 right
-                    property int rotDir: 0
-
-                    Timer {
-                    id: rotTimer
-                        interval: 16
-                        repeat: true
-                        running: boxart.rotDir !== 0 && detailsScreen.opacity > 0
-                        onTriggered: {
-                            var next = boxart.rotY + boxart.rotDir * 2
-                            boxart.rotY = Math.max(-180, Math.min(180, next))
-                        }
-                    }
-
-                    // Projection math
-                    property real rad:   rotY * Math.PI / 180
-                    property real cosR:  Math.cos(rad)
-                    property real sinR:  Math.sin(rad)
-
-                    property real frontW: boxW * Math.abs(cosR)
-                    property real spineW: boxD * Math.abs(sinR)
-
-                    property bool frontVisible: cosR >= 0
-                    property bool spineOnLeft:  sinR >= 0
-
-                    property real spineX: spineOnLeft ? 0      : frontW
-                    property real frontX: spineOnLeft ? spineW : 0
-
-                    property real frontBright: 0.72 + 0.28 * Math.abs(cosR)
-                    property real spineBright: 0.30 + 0.25 * Math.abs(sinR)
-
-                    // Centre the projected faces inside the item
-                    Item {
-                        width: boxW
-                        height: boxH
-                        anchors.centerIn: parent
-
-                        // Front face
-                        Item {
-                            x: boxart.frontX
-                            y: 0
-                            width:  boxart.frontW
-                            height: boxart.boxH
-                            clip: true
-                            visible: boxart.frontVisible
-
-                            Image {
-                                anchors.fill: parent
-                                source: game ? game.assets.boxFront : ""
-                                fillMode: Image.Stretch
-                                asynchronous: true
-                                smooth: true
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: "black"
-                                opacity: 1 - boxart.frontBright
-                            }
-                        }
-
-                        // Back face
-                        Item {
-                            x: boxart.frontX
-                            y: 0
-                            width:  boxart.frontW
-                            height: boxart.boxH
-                            clip: true
-                            visible: !boxart.frontVisible
-
-                            Image {
-                                anchors.fill: parent
-                                source: game ? game.assets.boxBack : ""
-                                fillMode: Image.Stretch
-                                asynchronous: true
-                                smooth: true
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: "#0d0d1a"
-                                visible: !(game && game.assets.boxBack)
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: "black"
-                                opacity: 1 - boxart.frontBright
-                            }
-                        }
-
-                        // Spine face
-                        Item {
-                            x: 0
-                            y: 0
-                            width:  boxart.spineW
-                            height: boxart.boxH
-                            clip: true
-
-                            Image {
-                                id: detailSpineImg
-                                width:  boxart.boxD
-                                height: boxart.boxH
-                                source: game ? game.assets.boxSpine : ""
-                                fillMode: Image.Stretch
-                                asynchronous: true
-                                smooth: true
-                                x: 0
-                                y: 0
-                                visible: status === Image.Ready && (game && game.assets.boxSpine)
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: "#0a0a18"
-                                visible: !detailSpineImg.visible
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: "black"
-                                opacity: 1 - boxart.spineBright
-                            }
-                        }
-                        // Top edge
-                        Rectangle {
-                            x: boxart.frontX; y: -vpx(3)
-                            width: boxart.frontW; height: vpx(3)
-                            color: "#1a1a30"; opacity: 0.9
-                        }
-                        // Bottom edge
-                        Rectangle {
-                            x: boxart.frontX; y: boxart.boxH
-                            width: boxart.frontW; height: vpx(3)
-                            color: "#08080f"; opacity: 0.9
-                        }
-                    }
-                // ── End 3D Box ────────────────────────────────────────────────────
-
-                    // Mouse drag to rotate
-                    MouseArea {
-                        anchors.fill: parent
-                        property real lastX: 0
-                        onPressed:  { lastX = mouse.x }
-                        onPositionChanged: {
-                            var delta = mouse.x - lastX
-                            lastX = mouse.x
-                            var next = boxart.rotY + delta * 0.5
-                            boxart.rotY = Math.max(-180, Math.min(180, next))
-                        }
-                    }
-                }
-            }
-
-            GameInfo {
-            id: info
-                anchors {
-                    left: boxartContainer.right; leftMargin: vpx(30)
-                    top: parent.top; bottom: parent.bottom; right: parent.right
-                }
-            }
-        }
+        hoverEnabled: settings.MouseHover == "Yes"
+        onClicked: previousScreen();
+      }
     }
+    z: 10
+  }
 
-    Item {
-    id: header
-        anchors {
-            left: parent.left; 
-            right: parent.right
-        }
-        height: vpx(75)
-
-        Image {
-        id: logobg
-            anchors.fill: platformlogo
-            source: "../assets/images/gradient.png"
-            asynchronous: true
-            visible: false
-        }
-
-        Image {
-        id: platformlogo
-            anchors {
-                top: parent.top; topMargin: vpx(20)
-                bottom: parent.bottom; bottomMargin: vpx(20)
-                left: parent.left; leftMargin: globalMargin
-            }
-            fillMode: Image.PreserveAspectFit
-            source: "../assets/images/logospng/" + Utils.processPlatformName(game.collections.get(0).shortName) + ".png"
-            sourceSize: Qt.size(width, height)
-            smooth: true
-            visible: false
-            asynchronous: true           
-        }
-
-        OpacityMask {
-            anchors.fill: logobg
-            source: logobg
-            maskSource: platformlogo
-            
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: settings.MouseHover == "Yes"
-                onClicked: previousScreen();
-            }
-        }
-
-        Text {
-        id: softwareplatformtitle
-            text: game.collections.get(0).name
-            anchors {
-                top: parent.top
-                left: parent.left; leftMargin: globalMargin
-                right: parent.right
-                bottom: parent.bottom
-            }
-            color: theme.text
-            font.family: titleFont.name
-            font.pixelSize: vpx(30)
-            font.bold: true
-            horizontalAlignment: Text.AlignHLeft
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-            visible: platformlogo.status == Image.Error
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: settings.MouseHover == "Yes"
-                onClicked: previousScreen();
-            }
-        }
-        z: 10
-    }
-
-    ObjectModel {
+  ObjectModel {
     id: menuModel
 
-        Button { 
-        id: button1 
-            text: "Play game"
-            height: parent.height
-            selected: ListView.isCurrentItem && menu.focus
-            onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
-            onActivated: 
-                if (selected) {
-                    sfxAccept.play();
-                    launchGame(game);
-                } else {
-                    sfxNav.play();
-                    menu.currentIndex = ObjectModel.index;
-                }
-        }
-
-        Button { 
-        id: button2 
-            icon: "../assets/images/icon_details.svg"
-            height: parent.height
-            selected: ListView.isCurrentItem && menu.focus
-            onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
-            onActivated: 
-                if (selected) {
-                    sfxToggle.play();
-                    showDetails();
-                } else {
-                    sfxNav.play();
-                    menu.currentIndex = ObjectModel.index;
-                }
-        }
-
-        Button { 
-        id: button3 
-            property string buttonText: game && game.favorite ? "Unfavorite" : "Add favorite"
-            icon: favIcon
-            height: parent.height
-            selected: ListView.isCurrentItem && menu.focus
-            onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
-            onActivated: 
-                if (selected) {
-                    sfxToggle.play();
-                    game.favorite = !game.favorite;
-                } else {
-                    sfxNav.play();
-                    menu.currentIndex = ObjectModel.index;
-                }
-        }
-        
-        Button { 
-        id: button4
-            icon: "../assets/images/icon_back.svg"
-            height: parent.height
-            selected: ListView.isCurrentItem && menu.focus
-            onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
-            onActivated: 
-                if (selected) 
-                    previousScreen();
-                else {
-                    sfxNav.play(); 
-                    menu.currentIndex = ObjectModel.index;
-                }
-        }
+    Button { 
+      id: button1 
+      text: "Play game"
+      height: parent.height
+      selected: ListView.isCurrentItem && menu.focus
+      onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
+      onActivated: 
+      if (selected) {
+        sfxAccept.play();
+        launchGame(game);
+      } else {
+        sfxNav.play();
+        menu.currentIndex = ObjectModel.index;
+      }
     }
 
-    ObjectModel {
+    Button { 
+      id: button2 
+      icon: "../assets/images/icon_details.svg"
+      height: parent.height
+      selected: ListView.isCurrentItem && menu.focus
+      onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
+      onActivated: 
+      if (selected) {
+        sfxToggle.play();
+        showDetails();
+      } else {
+        sfxNav.play();
+        menu.currentIndex = ObjectModel.index;
+      }
+    }
+
+    Button { 
+      id: button3 
+      property string buttonText: game && game.favorite ? "Unfavorite" : "Add favorite"
+      icon: favIcon
+      height: parent.height
+      selected: ListView.isCurrentItem && menu.focus
+      onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
+      onActivated: 
+      if (selected) {
+        sfxToggle.play();
+        game.favorite = !game.favorite;
+      } else {
+        sfxNav.play();
+        menu.currentIndex = ObjectModel.index;
+      }
+    }
+
+    Button { 
+      id: button4
+      icon: "../assets/images/icon_back.svg"
+      height: parent.height
+      selected: ListView.isCurrentItem && menu.focus
+      onHighlighted: { menu.currentIndex = ObjectModel.index; content.currentIndex = 0; }
+      onActivated: 
+      if (selected) 
+      previousScreen();
+      else {
+        sfxNav.play(); 
+        menu.currentIndex = ObjectModel.index;
+      }
+    }
+  }
+
+  ObjectModel {
     id: extrasModel
 
-        ListView {
-        id: menu
-            property bool selected: parent.focus
-            focus: selected
-            width: parent.width
-            height: vpx(50)
-            model: menuModel
-            orientation: ListView.Horizontal
-            spacing: vpx(10)
-            keyNavigationWraps: true
-            Keys.onLeftPressed: {
-                if (detailsScreen.opacity > 0) {
-                    boxart.rotDir = -1;
-                } else {
-                    sfxNav.play();
-                    decrementCurrentIndex();
-                }
-            }
-            Keys.onRightPressed: {
-                if (detailsScreen.opacity > 0) {
-                    boxart.rotDir = 1;
-                } else {
-                    sfxNav.play();
-                    incrementCurrentIndex();
-                }
-            }
-            Keys.onReleased: {
-                if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
-                    boxart.rotDir = 0;
-            }
-        }
-
-        HorizontalCollection {
-        id: media
-            width: root.width - vpx(70) - globalMargin
-            height: ((root.width - globalMargin * 2) / 6.0) + vpx(60)
-            title: "Media"
-            model: game ? mediaArray() : []
-            delegate: MediaItem {
-            id: mediadelegate
-                width: (root.width - globalMargin * 2) / 6.0
-                height: width
-                selected: ListView.isCurrentItem && media.ListView.isCurrentItem
-                mediaItem: modelData
-
-                onHighlighted: {
-                    sfxNav.play(); 
-                    media.currentIndex = index;
-                    content.currentIndex = media.ObjectModel.index;
-                }
-
-                onActivated: {
-                    if (selected)
-                        showMedia(index);
-                    else {
-                        sfxNav.play(); 
-                        media.currentIndex = index;
-                        content.currentIndex = media.ObjectModel.index;
-                    }
-                }
-            }
-        }
-
-        HorizontalCollection {
-        id: list1
-            property bool selected: ListView.isCurrentItem
-            focus: selected
-            width: root.width - vpx(70) - globalMargin
-            height: itemHeight + vpx(60)
-            itemWidth: (root.width - globalMargin * 2) / 4.0
-            itemHeight: itemWidth * settings.WideRatio
-            title: game ? "More games by " + game.publisher : ""
-            search: publisherCollection
-            onListHighlighted: { sfxNav.play(); content.currentIndex = list1.ObjectModel.index; }
-        }
-
-        HorizontalCollection {
-        id: list2
-            property bool selected: ListView.isCurrentItem
-            focus: selected
-            width: root.width - vpx(70) - globalMargin
-            height: itemHeight + vpx(60)
-            itemWidth: (root.width - globalMargin * 2) / 8.0
-            itemHeight: itemWidth / settings.TallRatio
-            title: game ? "More " + game.genreList[0].toLowerCase() + " games" : ""
-            search: genreCollection
-            onListHighlighted: { sfxNav.play(); content.currentIndex = list2.ObjectModel.index; }
-        }
-    }
-
     ListView {
-    id: content
-        anchors {
-            left: parent.left; leftMargin: vpx(70)
-            right: parent.right
-            top: parent.top; topMargin: header.height
-            bottom: parent.bottom; bottomMargin: vpx(150)
-        }
-        model: extrasModel
-        focus: true
-        spacing: vpx(30)
-        header: Item { height: vpx(450) }
-        
-        snapMode: ListView.SnapToItem
-        highlightMoveDuration: 100
-        displayMarginEnd: 150
-        cacheBuffer: 250
-        onCurrentIndexChanged: { 
-            if (content.currentIndex === 0) {
-                toggleVideo(true); 
-            } else {
-                toggleVideo(false);
-            }
-        }
-        keyNavigationWraps: true
-        Keys.onUpPressed: { sfxNav.play(); decrementCurrentIndex() }
-        Keys.onDownPressed: { sfxNav.play(); incrementCurrentIndex() }
-    }
-
-    MediaView {
-    id: mediaScreen
-        anchors.fill: parent
-        Behavior on opacity { NumberAnimation { duration: 100 } }
-        visible: opacity != 0
-        mediaModel: mediaArray()
-        mediaIndex: media.currentIndex != -1 ? media.currentIndex : 0
-        onClose: closeMedia()
-    }
-
-    Keys.onPressed: {
-        if (api.keys.isCancel(event) && !event.isAutoRepeat) {
-            event.accepted = true;
-            if (mediaScreen.visible)
-                closeMedia();
-            else
-                previousScreen();
-        }
-        if (api.keys.isFilters(event) && !event.isAutoRepeat) {
-            event.accepted = true;
-            sfxAccept.play();
-            game.favorite = !game.favorite;
-        }
-    }
-
-    Keys.onReleased: {
-        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
-            boxart.rotDir = 0;
-    }
-
-    ListModel {
-        id: gameviewHelpModel
-        ListElement { name: "Back"; button: "cancel" }
-        ListElement { name: "Toggle favorite"; button: "filters" }
-        ListElement { name: "Launch"; button: "accept" }
-    }
-    
-    onFocusChanged: { 
-        if (focus) { 
-            currentHelpbarModel = gameviewHelpModel;
-            menu.focus = true;
-            menu.currentIndex = 0; 
+      id: menu
+      property bool selected: parent.focus
+      focus: selected
+      width: parent.width
+      height: vpx(50)
+      model: menuModel
+      orientation: ListView.Horizontal
+      spacing: vpx(10)
+      keyNavigationWraps: true
+      Keys.onLeftPressed: {
+        if (detailsScreen.opacity > 0) {
+          boxart.rotDir = -1;
         } else {
-            screenshot.opacity = 1;
-            toggleVideo(false);
+          sfxNav.play();
+          decrementCurrentIndex();
         }
+      }
+      Keys.onRightPressed: {
+        if (detailsScreen.opacity > 0) {
+          boxart.rotDir = 1;
+        } else {
+          sfxNav.play();
+          incrementCurrentIndex();
+        }
+      }
+      Keys.onReleased: {
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+        boxart.rotDir = 0;
+      }
     }
+
+    HorizontalCollection {
+      id: media
+      width: root.width - vpx(70) - globalMargin
+      height: ((root.width - globalMargin * 2) / 6.0) + vpx(60)
+      title: "Media"
+      model: game ? mediaArray() : []
+      delegate: MediaItem {
+        id: mediadelegate
+        width: (root.width - globalMargin * 2) / 6.0
+        height: width
+        selected: ListView.isCurrentItem && media.ListView.isCurrentItem
+        mediaItem: modelData
+
+        onHighlighted: {
+          sfxNav.play(); 
+          media.currentIndex = index;
+          content.currentIndex = media.ObjectModel.index;
+        }
+
+        onActivated: {
+          if (selected)
+          showMedia(index);
+          else {
+            sfxNav.play(); 
+            media.currentIndex = index;
+            content.currentIndex = media.ObjectModel.index;
+          }
+        }
+      }
+    }
+
+    HorizontalCollection {
+      id: list1
+      property bool selected: ListView.isCurrentItem
+      focus: selected
+      width: root.width - vpx(70) - globalMargin
+      height: itemHeight + vpx(60)
+      itemWidth: (root.width - globalMargin * 2) / 4.0
+      itemHeight: itemWidth * settings.WideRatio
+      title: game ? "More games by " + game.publisher : ""
+      search: publisherCollection
+      onListHighlighted: { sfxNav.play(); content.currentIndex = list1.ObjectModel.index; }
+    }
+
+    HorizontalCollection {
+      id: list2
+      property bool selected: ListView.isCurrentItem
+      focus: selected
+      width: root.width - vpx(70) - globalMargin
+      height: itemHeight + vpx(60)
+      itemWidth: (root.width - globalMargin * 2) / 8.0
+      itemHeight: itemWidth / settings.TallRatio
+      title: game ? "More " + game.genreList[0].toLowerCase() + " games" : ""
+      search: genreCollection
+      onListHighlighted: { sfxNav.play(); content.currentIndex = list2.ObjectModel.index; }
+    }
+  }
+
+  ListView {
+    id: content
+    anchors {
+      left: parent.left; leftMargin: vpx(70)
+      right: parent.right
+      top: parent.top; topMargin: header.height
+      bottom: parent.bottom; bottomMargin: vpx(150)
+    }
+    model: extrasModel
+    focus: true
+    spacing: vpx(30)
+    header: Item { height: vpx(450) }
+
+    snapMode: ListView.SnapToItem
+    highlightMoveDuration: 100
+    displayMarginEnd: 150
+    cacheBuffer: 250
+    onCurrentIndexChanged: { 
+      if (content.currentIndex === 0) {
+        toggleVideo(true); 
+      } else {
+        toggleVideo(false);
+      }
+    }
+    keyNavigationWraps: true
+    Keys.onUpPressed: { sfxNav.play(); decrementCurrentIndex() }
+    Keys.onDownPressed: { sfxNav.play(); incrementCurrentIndex() }
+  }
+
+  MediaView {
+    id: mediaScreen
+    anchors.fill: parent
+    Behavior on opacity { NumberAnimation { duration: 100 } }
+    visible: opacity != 0
+    mediaModel: mediaArray()
+    mediaIndex: media.currentIndex != -1 ? media.currentIndex : 0
+    onClose: closeMedia()
+  }
+
+  Keys.onPressed: {
+    if (api.keys.isCancel(event) && !event.isAutoRepeat) {
+      event.accepted = true;
+      if (mediaScreen.visible)
+      closeMedia();
+      else
+      previousScreen();
+    }
+    if (api.keys.isFilters(event) && !event.isAutoRepeat) {
+      event.accepted = true;
+      sfxAccept.play();
+      game.favorite = !game.favorite;
+    }
+  }
+
+  Keys.onReleased: {
+    if (event.key === Qt.Key_Left || event.key === Qt.Key_Right)
+    boxart.rotDir = 0;
+  }
+
+  ListModel {
+    id: gameviewHelpModel
+    ListElement { name: "Back"; button: "cancel" }
+    ListElement { name: "Toggle favorite"; button: "filters" }
+    ListElement { name: "Launch"; button: "accept" }
+  }
+
+  onFocusChanged: { 
+    if (focus) { 
+      currentHelpbarModel = gameviewHelpModel;
+      menu.focus = true;
+      menu.currentIndex = 0; 
+    } else {
+      screenshot.opacity = 1;
+      toggleVideo(false);
+    }
+  }
 }
-
-
