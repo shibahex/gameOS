@@ -33,7 +33,7 @@ FocusScope {
   property string collectionName: game ? game.collections.get(0).name : ""
   property string collectionShortName: game ? game.collections.get(0).shortName : ""
   property bool iamsteam: game ? (collectionShortName == "steam") : false
-  property bool isPS3: game ? (collectionShortName == "ps3") : false
+  property bool isDisc: game ? (collectionShortName == "ps3" || collectionShortName == "ps2" || collectionShortName == "xbox360" ||  collectionShortName == "psx" ||  collectionShortName == "switch") : false
   property bool canPlayVideo: settings.VideoPreview === "Yes"
   property real detailsOpacity: (settings.DetailsDefault === "Yes") ? 1 : 0
   property bool blurBG: settings.GameBlurBackground === "Yes"
@@ -320,7 +320,7 @@ FocusScope {
         width: vpx(350)
         height: parent.height
 
-        // Regular boxart (non-PS3)
+        // Regular boxart (non-Console)
         Image {
           id: boxartFallback
           source: Utils.boxArt(game)
@@ -328,14 +328,14 @@ FocusScope {
           fillMode: Image.PreserveAspectFit
           asynchronous: true
           smooth: true
-          visible: !isPS3
+          visible: !isDisc
         }
 
         // ── 3D Box in details panel ───────────────────────────────────────
         Item {
           id: boxart
           anchors.fill: parent
-          visible: isPS3
+          visible: isDisc
 
           property real boxW: vpx(130*1.5)
           property real boxH: vpx(190*1.5)
